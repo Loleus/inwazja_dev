@@ -32,6 +32,7 @@ self.addEventListener('fetch', (event) => {
 
 async function precache() {
   const cache = await caches.open(CACHE);
+  // Includes every packaged file, including optional sprites and audio samples.
   await cache.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' })));
 }
 

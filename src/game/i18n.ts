@@ -56,7 +56,7 @@ const DICT = {
     towerLightning: 'Błyskawica',
     effectArrow: 'pojedynczy cel',
     effectCannon: 'mocny · bez szybkich',
-    effectFrost: 'spowalnia wroga',
+    effectFrost: 'spowalnia · +30% obrażeń w lodzie',
     effectLightning: 'łańcuch 3 · bez czołgów',
     // wrogowie
     enemyBasic: 'PROSTY',
@@ -97,6 +97,7 @@ const DICT = {
     // panel wieży
     level: 'POZIOM',
     slow: 'spowolnienie',
+    chilledDamage: '+{percent}% obrażeń w lodzie',
     chain: 'łańcuch',
     singleTarget: 'pojedynczy cel',
     worksOn: 'działa na:',
@@ -129,7 +130,7 @@ const DICT = {
     towerLightning: 'Lightning',
     effectArrow: 'single target',
     effectCannon: 'heavy · not vs fast',
-    effectFrost: 'slows enemies',
+    effectFrost: 'slows · +30% damage to chilled',
     effectLightning: 'chain 3 · not vs tanks',
     enemyBasic: 'BASIC',
     enemyFast: 'FAST',
@@ -166,6 +167,7 @@ const DICT = {
     hoverMax: 'max level · selling returns 60%',
     level: 'LEVEL',
     slow: 'slow',
+    chilledDamage: '+{percent}% damage to chilled',
     chain: 'chain',
     singleTarget: 'single target',
     worksOn: 'Targets:',

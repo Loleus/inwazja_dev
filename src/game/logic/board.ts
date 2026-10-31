@@ -4,6 +4,7 @@ import {
   BOARD_SKETCH,
   CELL,
   COLS,
+  ENEMY_MOTION,
   GAME_W,
   LANE_ARROWS,
   LANE_ROUTES,
@@ -55,13 +56,73 @@ export function onBoard(x: number, y: number): boolean {
 
 /* ----------------------------------- trasy wrogów ----------------------------------- */
 function buildPath(id: string, coords: [number, number][]): LanePath {
-  const points = coords.map(([c, r]) => ({
+  const rawPoints = coords.map(([c, r]) => ({
     x: c * PATH_CELL + PATH_CELL / 2,
     y: WORLD_Y + r * PATH_CELL + PATH_CELL / 2,
   }));
+  const routePoints: Point[] = [rawPoints[0]];
+  for (let i = 1; i < rawPoints.length - 1; i++) {
+    const previous = rawPoints[i - 1];
+    const current = rawPoints[i];
+    const next = rawPoints[i + 1];
+    const incomingX = current.x - previous.x;
+    const incomingY = current.y - previous.y;
+    const outgoingX = next.x - current.x;
+    const outgoingY = next.y - current.y;
+    const cross = incomingX * outgoingY - incomingY * outgoingX;
+    const dot = incomingX * outgoingX + incomingY * outgoingY;
+    if (Math.abs(cross) > 1e-6 || dot < 0) routePoints.push(current);
+  }
+  routePoints.push(rawPoints[rawPoints.length - 1]);
+
+  const corners: Point[] = [routePoints[0]];
+  for (let i = 1; i < routePoints.length - 1; i++) {
+    const previous = routePoints[i - 1];
+    const current = routePoints[i];
+    const next = routePoints[i + 1];
+    const incomingX = current.x - previous.x;
+    const incomingY = current.y - previous.y;
+    const outgoingX = next.x - current.x;
+    const outgoingY = next.y - current.y;
+    const incomingLength = Math.hypot(incomingX, incomingY);
+    const outgoingLength = Math.hypot(outgoingX, outgoingY);
+    const cross = incomingX * outgoingY - incomingY * outgoingX;
+    const dot = incomingX * outgoingX + incomingY * outgoingY;
+
+    if (Math.abs(cross) < 1e-6 || Math.abs(dot) > 1e-6) continue;
+
+    const incoming = { x: incomingX / incomingLength, y: incomingY / incomingLength };
+    const outgoing = { x: outgoingX / outgoingLength, y: outgoingY / outgoingLength };
+    const radius = Math.min(ENEMY_MOTION.cornerRadius, incomingLength / 2, outgoingLength / 2);
+    const start = { x: current.x - incoming.x * radius, y: current.y - incoming.y * radius };
+    const end = { x: current.x + outgoing.x * radius, y: current.y + outgoing.y * radius };
+    const center = {
+      x: start.x + outgoing.x * radius,
+      y: start.y + outgoing.y * radius,
+    };
+    const startAngle = Math.atan2(start.y - center.y, start.x - center.x);
+    const sweep = Math.sign(cross) * (Math.PI / 2);
+    // On the quarter-circle, forward and lateral velocity components vary sinusoidally.
+    corners.push(start);
+    for (let step = 1; step <= ENEMY_MOTION.cornerSteps; step++) {
+      const angle = startAngle + (sweep * step) / ENEMY_MOTION.cornerSteps;
+      corners.push({
+        x: center.x + Math.cos(angle) * radius,
+        y: center.y + Math.sin(angle) * radius,
+      });
+    }
+    corners[corners.length - 1] = end;
+  }
+  corners.push(routePoints[routePoints.length - 1]);
+
+  const points: Point[] = [corners[0]];
   let length = 0;
-  for (let i = 1; i < points.length; i++) {
-    length += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+  for (let i = 1; i < corners.length; i++) {
+    const point = corners[i];
+    const previous = points[points.length - 1];
+    if (Math.hypot(point.x - previous.x, point.y - previous.y) < 1e-6) continue;
+    length += Math.hypot(point.x - previous.x, point.y - previous.y);
+    points.push(point);
   }
   return { id, points, length };
 }

@@ -256,7 +256,7 @@ export const BUTTON = {
 
 /* ----------------------------------- ekonomia i tempo gry ----------------------------------- */
 export const TOTAL_WAVES = 50;
-export const START_GOLD = 500;
+export const START_GOLD = 450;
 export const START_LIVES = 30;
 export const SPEEDS = [1, 2];
 /** Sprzeda| zwraca 60 zainwestowanego zBota. */
@@ -385,28 +385,28 @@ export const TOWER_INFO: Record<TowerType, { hotkey: string; color: number }> = 
   lightning: { hotkey: '4', color: 0x9b59b6 },
 };
 
-/** 4 typy × 3 poziomy. Mróz nie zadaje obrażeń — tylko spowalnia.
+/** 4 typy × 3 poziomy. Mróz zadaje niewielkie obrażenia i spowalnia.
     Błyskawica: łańcuch na 3 cele, obrażenia maleją wzdłuż łańcucha. */
 export const TOWER_STATS: Record<TowerType, TowerLevelStats[]> = {
   arrow: [
-    { damage: 10, range: 130, fireRate: 500, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 50, upgradeCost: 40 },
-    { damage: 13, range: 150, fireRate: 350, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 0, upgradeCost: 70 },
-    { damage: 15, range: 170, fireRate: 220, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 0, upgradeCost: 0 },
+    { damage: 12, range: 125, fireRate: 480, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 60, upgradeCost: 45 },
+    { damage: 18, range: 145, fireRate: 350, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 0, upgradeCost: 80 },
+    { damage: 26, range: 165, fireRate: 240, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 0, upgradeCost: 0 },
   ],
   cannon: [
-    { damage: 25, range: 120, fireRate: 1200, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 90, upgradeCost: 60 },
-    { damage: 31, range: 135, fireRate: 700, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 0, upgradeCost: 100 },
-    { damage: 38, range: 150, fireRate: 400, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 0, upgradeCost: 0 },
+    { damage: 30, range: 115, fireRate: 1250, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 135, upgradeCost: 60 },
+    { damage: 48, range: 130, fireRate: 720, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 0, upgradeCost: 105 },
+    { damage: 72, range: 145, fireRate: 420, slow: 0, slowDuration: 0, chain: 0, chainDamage: [], cost: 0, upgradeCost: 0 },
   ],
   frost: [
-    { damage: 0, range: 120, fireRate: 1400, slow: 0.35, slowDuration: 2000, chain: 0, chainDamage: [], cost: 120, upgradeCost: 50 },
-    { damage: 0, range: 140, fireRate: 850, slow: 0.4, slowDuration: 2500, chain: 0, chainDamage: [], cost: 0, upgradeCost: 85 },
-    { damage: 0, range: 160, fireRate: 550, slow: 0.45, slowDuration: 3000, chain: 0, chainDamage: [], cost: 0, upgradeCost: 0 },
+    { damage: 5, range: 130, fireRate: 1200, slow: 0.45, slowDuration: 2200, chain: 0, chainDamage: [], cost: 155, upgradeCost: 60 },
+    { damage: 8, range: 145, fireRate: 850, slow: 0.55, slowDuration: 3000, chain: 0, chainDamage: [], cost: 0, upgradeCost: 90 },
+    { damage: 13, range: 165, fireRate: 600, slow: 0.65, slowDuration: 4000, chain: 0, chainDamage: [], cost: 0, upgradeCost: 0 },
   ],
   lightning: [
-    { damage: 25, range: 140, fireRate: 1000, slow: 0, slowDuration: 0, chain: 3, chainDamage: [25, 10, 5], cost: 150, upgradeCost: 90 },
-    { damage: 30, range: 155, fireRate: 650, slow: 0, slowDuration: 0, chain: 3, chainDamage: [30, 12, 6], cost: 0, upgradeCost: 140 },
-    { damage: 35, range: 175, fireRate: 400, slow: 0, slowDuration: 0, chain: 3, chainDamage: [35, 14, 7], cost: 0, upgradeCost: 0 },
+    { damage: 32, range: 135, fireRate: 1050, slow: 0, slowDuration: 0, chain: 3, chainDamage: [32, 18, 10], cost: 210, upgradeCost: 90 },
+    { damage: 48, range: 155, fireRate: 720, slow: 0, slowDuration: 0, chain: 3, chainDamage: [48, 26, 14], cost: 0, upgradeCost: 140 },
+    { damage: 70, range: 175, fireRate: 460, slow: 0, slowDuration: 0, chain: 3, chainDamage: [70, 38, 20], cost: 0, upgradeCost: 0 },
   ],
 };
 
@@ -422,17 +422,24 @@ export const EFFECTIVENESS: Record<EnemyType, Record<TowerType, boolean>> = {
   basic: { arrow: true, cannon: true, frost: true, lightning: false },
   fast: { arrow: true, cannon: false, frost: true, lightning: true },
   tank: { arrow: true, cannon: true, frost: true, lightning: false },
-  boss: { arrow: true, cannon: true, frost: false, lightning: true },
-  megaboss: { arrow: true, cannon: true, frost: false, lightning: true },
+  boss: { arrow: true, cannon: true, frost: true, lightning: true },
+  megaboss: { arrow: true, cannon: true, frost: true, lightning: true },
 };
 
-/** Ułamek obrażeń zadawanych typom odpornym. */
+/** Mnożniki obrażeń: wartości poniżej 1 oznaczają odporność, powyżej 1 — podatność. */
 export const DAMAGE_MULT: Partial<Record<EnemyType, Partial<Record<TowerType, number>>>> = {
-  basic: { cannon: 0.5 },
-  tank: { arrow: 0.25 },
-  boss: { arrow: 0.5, cannon: 0.75 },
-  megaboss: { arrow: 0.5, cannon: 0.75 },
+  basic: { cannon: 0.35 },
+  fast: { arrow: 1.25 },
+  tank: { arrow: 0.2, cannon: 1.4, frost: 0.75 },
+  boss: { arrow: 0.2, cannon: 0.5, frost: 0.5, lightning: 1.3 },
+  megaboss: { arrow: 0.2, cannon: 0.5, frost: 0.5, lightning: 1.3 },
 };
+
+export const FROST = {
+  chilledDamageMultiplier: 1.3,
+  bossSlow: 0.15,
+  bossSlowDuration: 900,
+} as const;
 
 export const COMBAT = {
   chainRange: 110,
@@ -567,12 +574,13 @@ export const PROJECTILE = {
   },
 } as const;
 
-/** Ruch: obrót zgodny z przebytą drogą, wejście z animacją skali. */
+/** Ruch wrogów: ćwierćokręgi na zakrętach i obrót sprite'a zgodny z kierunkiem jazdy. */
 export const ENEMY_MOTION = {
-  rotationPerPixel: Math.PI / 90,
+  cornerRadius: 18,
+  cornerSteps: 18,
+  forwardOffset: Math.PI / 2,
   spawnScaleFrom: 0.3,
   backEase: 1.70158,
-  waypointSnap: 2,
   slowTint: PALETTE.blue300,
 } as const;
 
@@ -640,25 +648,25 @@ export const FX = {
 /** Pokrętła balansu (strojone symulatorem rozgrywki). */
 export const BALANCE = {
   incomeW1: 40,
-  incomeStep: 19,
+  incomeStep: 10,
   waveBonusStep: 2,
-  hp: { basic: 60, fast: 45, tank: 150 } as Record<string, number>,
+  hp: { basic: 75, fast: 60, tank: 240 } as Record<string, number>,
   /** Współczynnik wzrostu HP (×6 na 50. fali). */
   hpGrowth: { basic: 0.02151, fast: 0.02151, tank: 0.02151, boss: 0.02151 } as Record<string, number>,
   /** Krzywa wzrostu: 1 = liniowo, >1 = łagodny początek i ostrzejsza końcówka. */
   hpPower: 1.4,
-  bossFirstHp: 500,
+  bossFirstHp: 650,
   /** Zwykły boss w eskorcie = tyle × boss prowadzący. */
-  escortBossMult: 0.7,
-  megaHp: 5000,
+  escortBossMult: 0.55,
+  megaHp: 8000,
   /** Zarezerwowany próg przyszłego finału; obecnie nie ogranicza składu fal. */
   finaleStart: 42,
   /** Zmierzona wydajność standardowej obrony (obrażenia na zdobyte złoto). */
   dmgPerGold: 0.111,
-  /** Fala trwa ~1,35× dłużej niż okno spawnu + marsz, bo wrogowie giną w drodze. */
-  timeFactor: 1.35,
+  /** Dłuższe starcia premiują kontrolę i ulepszanie wież zamiast samego ich stawiania. */
+  timeFactor: 1.45,
   /** Trudność fali (udział osiągalnej mocy armii) w punktach kotwiczenia. */
-  difficultyAnchors: [[1, 0.1], [40, 0.55], [50, 0.85]] as [number, number][],
+  difficultyAnchors: [[1, 0.12], [30, 0.9], [40, 0.92], [50, 1]] as [number, number][],
   /** HP kolejnych typów występuje od tych fal; skład po starcie wynika z parametrów broni i wrogów. */
   enemyStartWave: { basic: 1, fast: 3, tank: 6, boss: 10 },
 };
@@ -673,12 +681,12 @@ export const WAVE = {
   earlyMinimumUntil: 12,
   earlyMinimumBase: 3,
   earlyMinimumCap: 15,
-  /** Budżet HP: fala 1 = 240 (4 × 60), fala 2 ≥ +22%, do 10. fali ≥ +6%. */
-  firstBudget: 240,
+  /** Budżet HP: fala 1 = 300 (4 × 75), fala 2 ≥ +22%, do 10. fali ≥ +6%. */
+  firstBudget: 300,
   secondGrowth: 1.22,
   rampGrowth: 1.06,
   rampUntil: 10,
-  /** Ka|da fala ma co najmniej 102 HP poprzedniej. */
+  /** Każda fala ma co najmniej 102% łącznego HP poprzedniej. */
   minGrowth: 1.02,
   /** Fale 1-4 wypuszczają wrogów pojedynczo i wolniej. */
   earlyUntil: 4,

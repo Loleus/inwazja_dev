@@ -14,6 +14,7 @@ import {
   ENEMY_SHADOW,
   ENEMY_STYLE,
   ENEMY_VIEW,
+  FROST,
   FX,
   GAME_W,
   HEALTH_BAR,
@@ -44,7 +45,7 @@ import {
   WORLD_Y,
 } from '../constants';
 import type { Enemy, Fx, Projectile, SpawnEntry, Tower } from '../entities';
-import { towerBodyKey, towerHeadKey, towerSpriteKey } from '../gfx/sprites';
+import { isStaticTowerSprite, towerBodyKey, towerHeadKey, towerSpriteKey } from '../gfx/sprites';
 import { makeIconShadowTexture } from '../gfx/surfaces';
 import { enemyName, t, towerName } from '../i18n';
 import {
@@ -523,7 +524,8 @@ export class GameScene extends Phaser.Scene {
     const head = this.add
       .image(center.x, center.y, towerHeadKey(type, 0))
       .setDepth(DEPTH.TOWER + TURRET.depthStep)
-      .setScale(TOWER_SCALE);
+      .setScale(TOWER_SCALE)
+      .setVisible(!isStaticTowerSprite(type));
     const tower: Tower = {
       type,
       level: 0,
@@ -596,6 +598,10 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
     const visible = onBoard(spawn.x, spawn.y);
     for (const obj of [sprite, shadow, bar, barBg]) obj.setVisible(visible);
+    const next = path.points[1];
+    const initialHeading = Math.atan2(next.y - spawn.y, next.x - spawn.x) + ENEMY_MOTION.forwardOffset;
+    sprite.setRotation(initialHeading);
+    shadow.setRotation(initialHeading);
     // Animacja wejścia liczona w updateEnemies — bez tweena na każdego wroga.
     sprite.setScale(view.gameScale * ENEMY_MOTION.spawnScaleFrom);
     shadow.setScale(sprite.scaleX * cfg.scale);
@@ -630,7 +636,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Ruch po trasie; obrót zgodny z ruchem wskazówek zegara, proporcjonalny do przebytej drogi. */
+  /** Ruch po trasie; sprite obraca się tylko na łukach, pozostając skierowany zgodnie z jazdą. */
   private updateEnemies(dt: number) {
     const M = ENEMY_MOTION;
     const cfg = ENEMY_SHADOW.game;
@@ -661,29 +667,41 @@ export class GameScene extends Phaser.Scene {
         enemy.sprite.setTint(M.slowTint);
       }
 
-      const target = enemy.path.points[enemy.pathIndex];
-      if (!target) {
+      if (!enemy.path.points[enemy.pathIndex]) {
         this.enemyReachedBase(enemy);
         continue;
       }
-      const dx = target.x - enemy.x;
-      const dy = target.y - enemy.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const step = (speed * dt) / 1000;
-      const travelledBeforeMove = enemy.travelled;
-      if (dist <= Math.max(step, M.waypointSnap)) {
-        enemy.x = target.x;
-        enemy.y = target.y;
-        enemy.travelled += dist;
-        enemy.pathIndex++;
-        if (enemy.pathIndex >= enemy.path.points.length) {
-          this.enemyReachedBase(enemy);
-          continue;
+      let stepRemaining = (speed * dt) / 1000;
+      let headingX = 0;
+      let headingY = 0;
+      while (stepRemaining > 0) {
+        const target = enemy.path.points[enemy.pathIndex];
+        if (!target) break;
+        const dx = target.x - enemy.x;
+        const dy = target.y - enemy.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= stepRemaining) {
+          enemy.x = target.x;
+          enemy.y = target.y;
+          enemy.travelled += dist;
+          stepRemaining -= dist;
+          enemy.pathIndex++;
+        } else {
+          enemy.x += (dx / dist) * stepRemaining;
+          enemy.y += (dy / dist) * stepRemaining;
+          enemy.travelled += stepRemaining;
+          headingX = dx;
+          headingY = dy;
+          stepRemaining = 0;
         }
-      } else {
-        enemy.x += (dx / dist) * step;
-        enemy.y += (dy / dist) * step;
-        enemy.travelled += step;
+        if (dist > 0) {
+          headingX = dx;
+          headingY = dy;
+        }
+      }
+      if (enemy.pathIndex >= enemy.path.points.length || enemy.x > GAME_W) {
+        this.enemyReachedBase(enemy);
+        continue;
       }
       enemy.remaining = Math.max(0, enemy.path.length - enemy.travelled);
 
@@ -692,15 +710,13 @@ export class GameScene extends Phaser.Scene {
         enemy.onBoard = visible;
         for (const obj of [enemy.sprite, enemy.shadow, enemy.bar, enemy.barBg]) obj.setVisible(visible);
       }
-      if (enemy.x > GAME_W) {
-        this.enemyReachedBase(enemy);
-        continue;
-      }
-
       enemy.sprite.setPosition(enemy.x, enemy.y);
-      enemy.sprite.setRotation(enemy.sprite.rotation + (enemy.travelled - travelledBeforeMove) * M.rotationPerPixel);
+      if (headingX !== 0 || headingY !== 0) {
+        const heading = Math.atan2(headingY, headingX) + M.forwardOffset;
+        enemy.sprite.setRotation(heading);
+        enemy.shadow.setRotation(heading);
+      }
       enemy.shadow.setPosition(enemy.x, enemy.y + cfg.dy);
-      enemy.shadow.setRotation(enemy.sprite.rotation);
 
       // Pozycja paska HP co klatkę, rozmiar i kolor tylko po zmianie HP.
       enemy.barBg.setPosition(enemy.x, enemy.y - enemy.barOffset);
@@ -1212,13 +1228,13 @@ export class GameScene extends Phaser.Scene {
       this.damageEnemy(target, p.damage, p.towerLevel, p.towerType);
     } else if (p.towerType === 'frost') {
       this.frostFx(p.x, p.y);
+      this.damageEnemy(target, p.damage, p.towerLevel, p.towerType);
       // pocisk mrozu działa tylko na wroga z pełną prędkością: trafienie
       // w spowolnionego (np. pocisk wystrzelony wcześniej) nie odnawia spowolnienia
       if (target.slowTimer <= 0) this.applySlow(target, p.slow, p.slowDuration);
     } else if (p.towerType === 'lightning') {
-      // łańcuch na 3 cele; obrażenia maleją wzdłuż łańcucha (25/10/5 = 40 HP łącznie).
-      // Jeśli w zasięgu jest mniej wrogów, pierwszy cel i tak dostaje pełne 25 HP,
-      // a kolejne ogniwa dostają mniej.
+      // Łańcuch trafia do 3 celów; kolejne ogniwa zadają mniej obrażeń.
+      // Jeśli w zasięgu jest mniej wrogów, pierwszy cel nadal dostaje pełne obrażenia.
       const links = p.chainDamage;
       const firstDmg = links.length ? links[0] : p.damage;
       this.drawLightning(p.x, p.y, target.x, target.y);
@@ -1246,14 +1262,16 @@ export class GameScene extends Phaser.Scene {
 
   private applySlow(enemy: Enemy, factor: number, durationMs: number) {
     if (!enemy || !enemy.alive || factor <= 0) return;
-    if (isBossType(enemy.config.type)) return;
-    enemy.slowTimer = durationMs;
-    enemy.slowFactor = Math.max(enemy.slowFactor, factor);
+    const isBoss = isBossType(enemy.config.type);
+    enemy.slowTimer = isBoss ? Math.min(durationMs, FROST.bossSlowDuration) : durationMs;
+    enemy.slowFactor = Math.max(enemy.slowFactor, isBoss ? Math.min(factor, FROST.bossSlow) : factor);
   }
 
   private damageEnemy(enemy: Enemy, amount: number, towerLevel: number, towerType: TowerType) {
     if (!enemy || !enemy.alive) return;
-    const factor = damageFactor(towerType, enemy.config.type);
+    const resistance = damageFactor(towerType, enemy.config.type);
+    const chilled = towerType !== 'frost' && enemy.slowTimer > 0 ? FROST.chilledDamageMultiplier : 1;
+    const factor = resistance * chilled;
     const dealt = Math.max(1, Math.round(amount * factor));
     enemy.hp -= dealt;
     if (factor < 1) this.showResistFx(enemy);

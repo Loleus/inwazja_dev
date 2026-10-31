@@ -38,7 +38,7 @@ function waveBonus(w: number): number {
   return Math.round(BALANCE.waveBonusStep * (w - 1));
 }
 
-/** HP bossa prowadzącego falę — 500 na 10. fali, potem wzrost. */
+/** HP bossa prowadzącego falę — 650 na 10. fali, potem wzrost. */
 function bossLeaderHp(w: number): number {
   const base =
     BALANCE.bossFirstHp *
@@ -234,7 +234,7 @@ function buildWave(w: number, previousCounts: Record<EnemyType, number>): Wave {
     const targetCount = Math.max(params.min, previousCount, Math.round(total * share));
     const introCap = type === 'basic' ? targetCount : w - BALANCE.enemyStartWave[type] + 1;
     const count = Math.max(params.min, Math.min(targetCount, introCap));
-    const escortCount = type === 'boss' && leaderHp > 0 ? Math.max(0, count - 1) : count;
+    const escortCount = type === 'boss' && leaderHp > 0 && w !== TOTAL_WAVES ? Math.max(0, count - 1) : count;
     if (escortCount < 1) return;
     groups.push({
       config: { type, hp: enemyHpAtWave(type, w), speed: ENEMY_SPEED[type], gold: 1, damage: DAMAGE_BY_TYPE[type] },

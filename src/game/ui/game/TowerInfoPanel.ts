@@ -5,6 +5,7 @@ import {
   ENEMY_ORDER,
   ENEMY_STYLE,
   ENEMY_VIEW,
+  FROST,
   FONT_SIZE,
   GAME_W,
   INFO_PANEL,
@@ -219,9 +220,16 @@ function effectDescription(
   chain: number,
   chainDamage: number[],
 ): [string, string] {
-  if (slow) return [`${t('slow')} ${Math.round(slow * 100)}% · ${slowDuration / 1000} s`, I.effect.slow];
+  if (slow) {
+    return [
+      `${t('slow')} ${Math.round(slow * 100)}% / ${slowDuration / 1000}s · ${t('chilledDamage', {
+        percent: Math.round((FROST.chilledDamageMultiplier - 1) * 100),
+      })}`,
+      I.effect.slow,
+    ];
+  }
   if (chain) return [`${t('chain')} ${chain} · ${chainDamage.join('/')} DMG · ${t('noTank')}`, I.effect.chain];
   if (type === 'cannon') return [`${t('singleTarget')} · ${t('noFast')}`, I.effect.cannon];
-  if (type === 'arrow') return [`${t('tank')} 25% · ${t('bossMega')} 50%`, I.effect.arrow];
+  if (type === 'arrow') return [`${t('tank')} 20% · ${t('bossMega')} 20%`, I.effect.arrow];
   return [t('singleTarget'), I.effect.single];
 }
