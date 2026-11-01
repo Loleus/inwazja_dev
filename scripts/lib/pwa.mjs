@@ -82,6 +82,8 @@ export async function addPwa(html, outDir) {
   ].join('\n');
   await fs.writeFile(path.join(outDir, 'index.html'), injectBeforeHeadEnd(html, head));
 
+  // Precache obejmuje cały wynik Vite, w tym public/audio i public/assets.
+  // Dzięki temu sample i opcjonalne sprite'y są dostępne również bez sieci.
   // sw.js powstaje na końcu, bo zna skróty wszystkich pozostałych plików.
   const files = await walk(outDir);
   const build = await buildId(outDir, files);

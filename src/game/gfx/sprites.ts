@@ -1,6 +1,6 @@
 /* =========================================================================================
-   Tekstury rysowane proceduralnie na starcie gry: kafelki terenu, wieże 4×3, pociski,
-   wrogowie, ikony HUD i flagi języków. Gra nie potrzebuje żadnych plików graficznych.
+   Tekstury gry mają proceduralne fallbacki; opcjonalne sprite'y z public/assets/ zastępują
+   odpowiednie tekstury po załadowaniu. Kafelki, pociski, ikony HUD i flagi nadal są generowane.
    ========================================================================================= */
 import Phaser from 'phaser';
 import {
@@ -16,7 +16,119 @@ import {
   TOWER_SPRITE,
   UI_RESOLUTION,
 } from '../constants';
-import type { TowerType } from '../types';
+import type { EnemyType, TowerType } from '../types';
+
+interface SpriteAsset {
+  key: string;
+  path: string;
+  width: number;
+  height: number;
+}
+
+const TOWER_ASSET_NAMES: Record<TowerType, string> = {
+  arrow: 'arrow',
+  cannon: 'cannon',
+  frost: 'frost',
+  lightning: 'lightning',
+};
+
+const ENEMY_ASSET_NAMES: Record<EnemyType, string> = {
+  basic: 'basic',
+  fast: 'fast',
+  tank: 'tank',
+  boss: 'boss',
+  megaboss: 'megaboss',
+};
+
+const SPRITE_ASSETS: SpriteAsset[] = [
+  ...TOWER_ORDER.flatMap((type) => [
+    {
+      key: `asset-tower-${type}`,
+      path: `towers/${TOWER_ASSET_NAMES[type]}.png`,
+      width: TOWER_SPRITE.size,
+      height: TOWER_SPRITE.size,
+    },
+    {
+      key: `asset-tower-${type}-body`,
+      path: `towers/${TOWER_ASSET_NAMES[type]}-body.png`,
+      width: TOWER_SPRITE.size,
+      height: TOWER_SPRITE.size,
+    },
+    {
+      key: `asset-tower-${type}-head`,
+      path: `towers/${TOWER_ASSET_NAMES[type]}-head.png`,
+      width: TOWER_SPRITE.size,
+      height: TOWER_SPRITE.size,
+    },
+  ]),
+  ...(Object.keys(ENEMY_ASSET_NAMES) as EnemyType[]).map((type) => ({
+    key: `asset-enemy-${type}`,
+    path: `enemies/${ENEMY_ASSET_NAMES[type]}.png`,
+    width: ENEMY_VIEW[type].size,
+    height: ENEMY_VIEW[type].size,
+  })),
+];
+
+const staticTowerSprites = new Set<TowerType>();
+
+export function isStaticTowerSprite(type: TowerType): boolean {
+  return staticTowerSprites.has(type);
+}
+
+export function preloadSpriteAssets(scene: Phaser.Scene) {
+  const base = new URL('assets/', document.baseURI);
+  for (const asset of SPRITE_ASSETS) {
+    scene.load.image(asset.key, new URL(asset.path, base).href);
+  }
+}
+
+function copySpriteAsset(scene: Phaser.Scene, sourceKey: string, targetKey: string, width: number, height: number) {
+  if (!scene.textures.exists(sourceKey)) return false;
+  const source = scene.textures.get(sourceKey).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+  const scale = Math.min(width / source.width, height / source.height);
+  const drawWidth = source.width * scale;
+  const drawHeight = source.height * scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    console.warn(`Could not prepare optional sprite asset: ${sourceKey}`);
+    return false;
+  }
+  context.drawImage(source, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+  if (scene.textures.exists(targetKey)) scene.textures.remove(targetKey);
+  scene.textures.addCanvas(targetKey, canvas);
+  return true;
+}
+
+export function applySpriteAssets(scene: Phaser.Scene) {
+  staticTowerSprites.clear();
+  for (const type of TOWER_ORDER) {
+    const fullKey = `asset-tower-${type}`;
+    const bodyKey = `${fullKey}-body`;
+    const headKey = `${fullKey}-head`;
+    const hasFull = scene.textures.exists(fullKey);
+    const hasBody = scene.textures.exists(bodyKey);
+    const hasHead = scene.textures.exists(headKey);
+
+    if (hasFull) copySpriteAsset(scene, fullKey, towerSpriteKey(type), TOWER_SPRITE.size, TOWER_SPRITE.size);
+    if (hasFull && !hasHead && !hasBody) staticTowerSprites.add(type);
+
+    for (let level = 0; level <= MAX_TOWER_LEVEL; level++) {
+      const bodyTexture = towerBodyKey(type, level);
+      const headTexture = towerHeadKey(type, level);
+      if (hasBody) copySpriteAsset(scene, bodyKey, bodyTexture, TOWER_SPRITE.size, TOWER_SPRITE.size);
+      else if (hasFull) copySpriteAsset(scene, fullKey, bodyTexture, TOWER_SPRITE.size, TOWER_SPRITE.size);
+      if (hasHead) copySpriteAsset(scene, headKey, headTexture, TOWER_SPRITE.size, TOWER_SPRITE.size);
+    }
+  }
+
+  for (const type of Object.keys(ENEMY_ASSET_NAMES) as EnemyType[]) {
+    const key = `asset-enemy-${type}`;
+    copySpriteAsset(scene, key, `enemy-${type}`, ENEMY_VIEW[type].size, ENEMY_VIEW[type].size);
+  }
+}
 
 type CornerDir = 'ne' | 'nw' | 'se' | 'sw';
 

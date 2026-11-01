@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { FONT_PRELOAD, FONT_PRELOAD_TIMEOUT_MS } from '../constants';
-import { buildFlagTextures, buildTextures } from '../gfx/sprites';
+import { applySpriteAssets, buildFlagTextures, buildTextures, preloadSpriteAssets } from '../gfx/sprites';
 
 /** Buduje tekstury, czeka na flagi i czcionki (najwyżej FONT_PRELOAD_TIMEOUT_MS), potem menu. */
 export class BootScene extends Phaser.Scene {
@@ -8,8 +8,13 @@ export class BootScene extends Phaser.Scene {
     super('BootScene');
   }
 
+  preload() {
+    preloadSpriteAssets(this);
+  }
+
   create() {
     buildTextures(this);
+    applySpriteAssets(this);
     let started = false;
     const start = () => {
       if (started) return;
