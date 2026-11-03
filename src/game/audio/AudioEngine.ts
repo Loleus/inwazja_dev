@@ -11,7 +11,6 @@
 import type { EnemyType, TowerType } from '../types';
 import {
   ALL_SOUND_IDS,
-  AUDIO_SAMPLE_FILES,
   ENEMY_LOOPS,
   FADE_MS,
   SOUNDS,
@@ -269,8 +268,6 @@ export class AudioEngine {
 
     const promise = (async () => {
       try {
-        // Brak sampli w repozytorium: każdy dźwięk jest syntezowany z fallbacku.
-        if (!AUDIO_SAMPLE_FILES) throw new Error('samples disabled');
         const response = await fetch(soundFile(id));
         if (!response.ok) throw new Error('HTTP ' + response.status);
         const data = await response.arrayBuffer();
