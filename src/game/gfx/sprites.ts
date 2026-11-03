@@ -694,7 +694,6 @@
 //   g.destroy();
 // }
 
-
 /* =========================================================================================
    Tekstury gry mają proceduralne fallbacki; opcjonalne sprite'y z public/assets/ zastępują
    odpowiednie tekstury po załadowaniu. Kafelki, pociski, ikony HUD i flagi nadal są generowane.
@@ -928,6 +927,10 @@ export function towerHeadKey(type: TowerType, level: number): string {
   return towerSpriteKey(type, level) + TOWER_SPRITE.headSuffix;
 }
 
+export function towerRingKey(type: TowerType): string {
+  return `tower-${type}-ring`;
+}
+
 /** Symbol broni wystający z korpusu. Wszystkie mają tę samą wysokość i są wyśrodkowane
     na osi wieży, więc ikony wszystkich broni wyglądają tak samo. */
 function drawGlyph(g: Phaser.GameObjects.Graphics, type: TowerType) {
@@ -956,15 +959,20 @@ function drawGlyph(g: Phaser.GameObjects.Graphics, type: TowerType) {
   }
 }
 
-/** Korpus: poświata i miękkie cienie na zewnątrz oraz płyta blachy w kolorze typu. */
-function drawTowerBody(g: Phaser.GameObjects.Graphics, type: TowerType, level: number) {
+/** Osobna warstwa obreczy i poswiaty, widoczna po drugim ulepszeniu. */
+function drawTowerRing(g: Phaser.GameObjects.Graphics, type: TowerType) {
   const S = TOWER_SPRITE;
   const c = S.size / 2;
+  g.fillStyle(TOWER_INFO[type].color, S.eye.halo);
+  g.fillCircle(c, c, S.eye.ring);
+  g.lineStyle(S.eye.ringWidth, S.upgrade, S.eye.ringAlpha);
+  g.strokeCircle(c, c, S.eye.ring);
+}
+
+/** Korpus: miękkie cienie na zewnątrz oraz płyta blachy w kolorze typu. */
+function drawTowerBody(g: Phaser.GameObjects.Graphics, type: TowerType, level: number) {
+  const S = TOWER_SPRITE;
   const color = TOWER_INFO[type].color;
-  if (level === MAX_TOWER_LEVEL) {
-    g.fillStyle(color, S.eye.halo);
-    g.fillCircle(c, c, S.eye.ring);
-  }
   const grow = level === MAX_TOWER_LEVEL ? 1 : 0;
   const inset = S.body.inset - grow;
   const size = S.body.size + grow * 2;
@@ -1016,20 +1024,19 @@ function drawTowerHead(g: Phaser.GameObjects.Graphics, type: TowerType, level: n
     g.fillStyle(PALETTE.amber400, 1);
     g.fillCircle(c, c, S.eye.core);
   }
-  if (level === MAX_TOWER_LEVEL) {
-    g.lineStyle(S.eye.ringWidth, S.upgrade, S.eye.ringAlpha);
-    g.strokeCircle(c, c, S.eye.ring);
-  }
 }
 
-/** Wieża składa się z dwóch warstw: korpusu i obracanej głowicy.
-    Tekstura pełna (oba elementy naraz) obsługuje statyczne ikony interfejsu. */
+/** Obrecz, korpus i glowica sa osobnymi warstwami; pelna tekstura sluzy ikonom UI. */
 function buildTowers(g: Phaser.GameObjects.Graphics) {
   const size = TOWER_SPRITE.size;
   for (const type of TOWER_ORDER) {
+    g.clear();
+    drawTowerRing(g, type);
+    g.generateTexture(towerRingKey(type), size, size);
     for (let level = 0; level <= MAX_TOWER_LEVEL; level++) {
       g.clear();
       drawTowerBody(g, type, level);
+      if (level === MAX_TOWER_LEVEL) drawTowerRing(g, type);
       drawTowerHead(g, type, level);
       g.generateTexture(towerSpriteKey(type, level), size, size);
       g.clear();

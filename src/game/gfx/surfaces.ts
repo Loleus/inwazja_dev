@@ -513,14 +513,14 @@
 //   return Boolean(texture);
 // }
 
-
 /* =========================================================================================
    Faktury i cienie generowane na canvasie: kamienna plansza, kamień kart i pasków,
    cień kart menu, tytuł w zimowym kamuflażu i miękki cień wokół ikon.
    ========================================================================================= */
 import Phaser from 'phaser';
-import { BOARD_H, CARD, COLS, CELL, GAME_W, ROWS, TEXTURE, UI_RESOLUTION } from '../constants';
-import { tileTextureKey } from '../logic/board';
+import { BOARD_H, CARD, CELL, COLS, ENEMY_STYLE, GAME_W, ROWS, TEXTURE, UI_RESOLUTION } from '../constants';
+import { isPath, tileTextureKey } from '../logic/board';
+import { cardBackground } from '../utils/color';
 
 /* =========================================================================================
    TYTUŁ W ZIMOWYM KAMUFLAŻU (wojska górskie).
@@ -620,13 +620,9 @@ function samplePatternGrid(grid: PatternGrid, x: number, y: number, width: numbe
   return top + (bottom - top) * ty;
 }
 
-/**
- * Jedna tekstura całej planszy: zachowuje geometrię i dwie tonacje trawy/piasku,
- * ale kamienne ziarno liczy z GLOBALNYCH współrzędnych 800×600. Nie powtarza się
- * co 25 px ani co szerokość kart/pasków. Powstaje raz i jest współdzielona przez sceny.
- */
+/** Plansza z fakturą pasków, zachowanymi kolorami podłoża i żwirem na jezdni. */
 export function makeBoardStoneTexture(scene: Phaser.Scene): string {
-  const key = 'board-stone-unique-v1';
+  const key = 'board-stone-bars-gravel-8x8-v2';
   if (scene.textures.exists(key)) return key;
   const height = BOARD_H;
   const texture = scene.textures.createCanvas(key, GAME_W, height);
@@ -641,39 +637,258 @@ export function makeBoardStoneTexture(scene: Phaser.Scene): string {
     }
   }
 
-  const image = ctx.getImageData(0, 0, GAME_W, height);
-  const pixels = image.data;
-  const rnd = camoRandom(0x6f726f6a);
-  // Wszystkie oktawy rozpięte na CAŁEJ planszy; nie są kafelkowane między polami.
-  const coarse = makePatternGrid(37, 29, rnd);
-  const medium = makePatternGrid(129, 99, rnd);
-  const fine = makePatternGrid(379, 283, rnd);
+  applyBarStoneGrain(scene, ctx);
+  overlayRoadGravel(scene, ctx);
+  texture.refresh();
+  return key;
+}
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < GAME_W; x++) {
-      const offset = (y * GAME_W + x) * 4;
-      const stone =
-        samplePatternGrid(coarse, x, y, GAME_W, height) * 0.36 +
-        samplePatternGrid(medium, x, y, GAME_W, height) * 0.32 +
-        samplePatternGrid(fine, x, y, GAME_W, height) * 0.24;
-      // Niezależny pył w każdym pikselu; również jego wzór nie ma okresu kafelka.
-      let hash = Math.imul(x + 16411, 374761393) ^ Math.imul(y + 24133, 668265263);
-      hash = Math.imul(hash ^ (hash >>> 13), 1274126177);
-      const dust = ((hash >>> 0) / 4294967295 - 0.5) * 0.07;
-      const lightRoad = pixels[offset] > 170 && pixels[offset] > pixels[offset + 1] * 1.08;
-      // Plansza ma mieć widoczne, ale subtelne ziarno — faktura nie może konkurować
-      // z drogami, wieżami i wrogami. Paski/menu zachowują osobną, mocniejszą fakturę.
-      // Ciemne pobocze zostaje przy mocniejszym ziarnie trawy, jasna jezdnia przy słabszym.
-      const strength = lightRoad ? 0.12 : 0.16;
-      const multiplier = Math.max(0.88, Math.min(1.12, 1 + (stone + dust) * strength));
-      pixels[offset] = Math.round(pixels[offset] * multiplier);
-      pixels[offset + 1] = Math.round(pixels[offset + 1] * multiplier);
-      pixels[offset + 2] = Math.round(pixels[offset + 2] * multiplier);
+const barGrainCache = new WeakMap<HTMLCanvasElement, ImageData>();
+
+/** Ta sama faktura i skala co drawStoneBar, bez przenoszenia szarej barwy pasków. */
+function applyBarStoneGrain(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, offsetX = 0, offsetY = 0) {
+  const color = cardBackground(ENEMY_STYLE.tank.color);
+  const { width, height } = TEXTURE.barStoneSource;
+  const key = makeMenuStoneTexture(scene, color, width, height);
+  if (!key) return;
+  const source = scene.textures.get(key).getSourceImage() as HTMLCanvasElement;
+  let grain = barGrainCache.get(source);
+  if (!grain) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const grainCtx = canvas.getContext('2d');
+    if (!grainCtx) return;
+    // Dopasowanie rozdzielczosci HiDPI do pikseli planszy, nie rozciaganie wzoru.
+    grainCtx.drawImage(source, 0, 0, width, height);
+    grain = grainCtx.getImageData(0, 0, width, height);
+    barGrainCache.set(source, grain);
+  }
+
+  const baseBrightness = ((color >>> 16) & 255) + ((color >>> 8) & 255) + (color & 255);
+  const image = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+  const pixels = image.data;
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      const sample = (((y + offsetY) % height) * width + ((x + offsetX) % width)) * 4;
+      const multiplier = (grain.data[sample] + grain.data[sample + 1] + grain.data[sample + 2]) / baseBrightness;
+      const offset = (y * image.width + x) * 4;
+      for (let channel = 0; channel < 3; channel++) {
+        pixels[offset + channel] = Math.round(pixels[offset + channel] * multiplier);
+      }
     }
   }
   ctx.putImageData(image, 0, 0);
-  texture.refresh();
-  return key;
+}
+
+/* =========================================================================================
+   ŻWIR NA JEZDNI: 64 kafelki 25x25 px, wspólny powtarzalny blok 8x8 (200x200 px),
+   generowane proceduralnie i zszyte bez widocznych łączeń: kamyki rysowane są na torusie,
+   więc blok powiela się w nieskończoność. Nakładane z alfą 0.3 w trybie "luminosity":
+   kamyki zmieniają tylko jasność, a żółtawy odcień piasku (TEXTURE.sand) zostaje nietknięty.
+   ========================================================================================= */
+export const GRAVEL_TILE_SPAN = 8;
+export const GRAVEL_TILE_KEYS = Array.from(
+  { length: GRAVEL_TILE_SPAN * GRAVEL_TILE_SPAN },
+  (_, i) => `tile-gravel-${GRAVEL_TILE_SPAN}x${GRAVEL_TILE_SPAN}-${i % GRAVEL_TILE_SPAN}-${Math.floor(i / GRAVEL_TILE_SPAN)}`,
+);
+export const GRAVEL_ALPHA = 0.3;
+const GRAVEL_BLOCK = CELL * GRAVEL_TILE_SPAN;
+
+/** Blok 8x8 powtarzany w siatce planszy, bez skalowania pojedynczych kafelków. */
+export function gravelTileKey(col: number, row: number): string {
+  return GRAVEL_TILE_KEYS[(col % GRAVEL_TILE_SPAN) + (row % GRAVEL_TILE_SPAN) * GRAVEL_TILE_SPAN];
+}
+
+/** Naturalna, lekko ciepła szarość kamienia o zadanej jasności 0..255. */
+function stoneGrey(l: number): string {
+  const v = Math.max(0, Math.min(255, Math.round(l)));
+  return `rgb(${v},${Math.round(v * 0.97)},${Math.round(v * 0.92)})`;
+}
+
+/** Jeden kamyk tłucznia: kanciasty wielokąt, jaśniejszy u góry po lewej, z ciemną krawędzią. */
+function drawPebble(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  squash: number,
+  rot: number,
+  lum: number,
+  corners: number[],
+) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(1, squash);
+  const base = lum * 255;
+  const g = ctx.createLinearGradient(-r, -r, r, r);
+  g.addColorStop(0, stoneGrey(base + 34));
+  g.addColorStop(0.5, stoneGrey(base));
+  g.addColorStop(1, stoneGrey(base - 58));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  const n = corners.length;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const rr = r * corners[i];
+    const px = Math.cos(a) * rr;
+    const py = Math.sin(a) * rr;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = 'rgba(40,36,30,0.6)';
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Buduje raz blok 8x8 kafelków żwiru. Zwraca false, gdy canvas jest niedostępny. */
+export function ensureGravelTiles(scene: Phaser.Scene): boolean {
+  if (GRAVEL_TILE_KEYS.every((key) => scene.textures.exists(key))) return true;
+  const B = GRAVEL_BLOCK;
+  const block = document.createElement('canvas');
+  block.width = B;
+  block.height = B;
+  const ctx = block.getContext('2d');
+  if (!ctx) return false;
+  const rnd = camoRandom(0x67726176);
+
+  // pył między kamykami
+  ctx.fillStyle = stoneGrey(116);
+  ctx.fillRect(0, 0, B, B);
+  const areaScale = (B * B) / (50 * 50);
+  for (let i = 0; i < Math.round(260 * areaScale); i++) {
+    ctx.fillStyle = stoneGrey(92 + rnd() * 56);
+    ctx.fillRect(Math.floor(rnd() * B), Math.floor(rnd() * B), 1, 1);
+  }
+
+  // Drobny, gęsty żwir: mniejsze kamyki (promień 0.7–1.6 px) i ok. 2,5× więcej na tym samym bloku.
+  for (let i = 0; i < Math.round(480 * areaScale); i++) {
+    const x = rnd() * B;
+    const y = rnd() * B;
+    const r = 0.7 + rnd() * 0.9;
+    const squash = 0.62 + rnd() * 0.38;
+    const rot = rnd() * Math.PI;
+    const lum = 0.54 + rnd() * 0.44;
+    const corners: number[] = [];
+    const sides = 5 + Math.floor(rnd() * 3);
+    for (let s = 0; s < sides; s++) corners.push(0.72 + rnd() * 0.28);
+    for (let oy = -B; oy <= B; oy += B) {
+      for (let ox = -B; ox <= B; ox += B) {
+        if (x + ox + r + 1 < 0 || x + ox - r - 1 > B || y + oy + r + 1 < 0 || y + oy - r - 1 > B) continue;
+        drawPebble(ctx, x + ox, y + oy, r, squash, rot, lum, corners);
+      }
+    }
+  }
+
+  GRAVEL_TILE_KEYS.forEach((key, i) => {
+    if (scene.textures.exists(key)) return;
+    const tile = document.createElement('canvas');
+    tile.width = CELL;
+    tile.height = CELL;
+    const tctx = tile.getContext('2d');
+    if (!tctx) return;
+    const x = (i % GRAVEL_TILE_SPAN) * CELL;
+    const y = Math.floor(i / GRAVEL_TILE_SPAN) * CELL;
+    tctx.drawImage(block, x, y, CELL, CELL, 0, 0, CELL, CELL);
+    scene.textures.addCanvas(key, tile)?.refresh();
+  });
+  return GRAVEL_TILE_KEYS.every((key) => scene.textures.exists(key));
+}
+
+type GravelCornerDir = 'ne' | 'nw' | 'se' | 'sw';
+
+function canvasCornerPath(ctx: CanvasRenderingContext2D, corner: GravelCornerDir, inverted = false) {
+  const S = CELL;
+  const R = TEXTURE.cornerRadius;
+  ctx.beginPath();
+  if (inverted) ctx.rect(0, 0, S, S);
+  if (corner === 'sw') {
+    ctx.moveTo(0, 0);
+    ctx.lineTo(S, 0);
+    ctx.lineTo(S, S);
+    ctx.lineTo(R, S);
+    ctx.arc(R, S - R, R, Math.PI / 2, Math.PI, false);
+  } else if (corner === 'se') {
+    ctx.moveTo(0, 0);
+    ctx.lineTo(S, 0);
+    ctx.lineTo(S, S - R);
+    ctx.arc(S - R, S - R, R, 0, Math.PI / 2, false);
+    ctx.lineTo(0, S);
+  } else if (corner === 'nw') {
+    ctx.moveTo(0, S);
+    ctx.lineTo(S, S);
+    ctx.lineTo(S, 0);
+    ctx.lineTo(R, 0);
+    ctx.arc(R, R, R, -Math.PI / 2, -Math.PI, true);
+  } else {
+    ctx.moveTo(0, 0);
+    ctx.lineTo(S - R, 0);
+    ctx.arc(S - R, R, R, -Math.PI / 2, 0, false);
+    ctx.lineTo(S, S);
+    ctx.lineTo(0, S);
+  }
+  ctx.closePath();
+}
+
+/**
+ * Kładzie kafelki żwiru na jezdni (z wycięciem klina na zakrętach). Tryb „luminosity"
+ * przenosi na piasek wyłącznie jasność kamyków — barwa i nasycenie żółtawej drogi
+ * zostają dokładnie takie, jakie definiuje TEXTURE.sand.
+ */
+function overlayRoadGravel(scene: Phaser.Scene, ctx: CanvasRenderingContext2D) {
+  if (!ensureGravelTiles(scene)) return;
+  for (let col = 0; col < COLS; col++) {
+    for (let row = 0; row < ROWS; row++) {
+      drawRoadGravelTile(scene, ctx, col, row, col * CELL, row * CELL);
+    }
+  }
+}
+
+function drawRoadGravelTile(
+  scene: Phaser.Scene,
+  ctx: CanvasRenderingContext2D,
+  col: number,
+  row: number,
+  x: number,
+  y: number,
+) {
+  const tileKey = tileTextureKey(col, row);
+  const inner = tileKey.startsWith('tile-inner-');
+  if (!isPath(col, row) && !inner) return;
+  const tile = scene.textures.get(gravelTileKey(col, row)).getSourceImage() as HTMLCanvasElement;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = GRAVEL_ALPHA;
+  ctx.globalCompositeOperation = 'luminosity';
+  if (inner || tileKey.startsWith('tile-corner-')) {
+    const dir = tileKey.split('-')[2] as GravelCornerDir;
+    canvasCornerPath(ctx, dir, inner);
+    ctx.clip('evenodd');
+  }
+  ctx.drawImage(tile, 0, 0);
+  ctx.restore();
+}
+
+/** Zapasowy kafelek ma te same kolory, fakturę i wycięcia co cała plansza. */
+export function makeBoardTileTexture(scene: Phaser.Scene, col: number, row: number): string {
+  const key = `board-stone-bars-gravel-8x8-v2-${col}-${row}`;
+  if (scene.textures.exists(key)) return key;
+  const baseKey = tileTextureKey(col, row);
+  const canvas = document.createElement('canvas');
+  canvas.width = CELL;
+  canvas.height = CELL;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return baseKey;
+  ctx.drawImage(scene.textures.get(baseKey).getSourceImage() as CanvasImageSource, 0, 0);
+  applyBarStoneGrain(scene, ctx, col * CELL, row * CELL);
+  if (ensureGravelTiles(scene)) drawRoadGravelTile(scene, ctx, col, row, 0, 0);
+  const texture = scene.textures.addCanvas(key, canvas);
+  texture?.refresh();
+  return texture ? key : baseKey;
 }
 
 /**

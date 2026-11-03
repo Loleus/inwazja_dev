@@ -190,7 +190,6 @@
 //   hit.on('pointerdown', onStart);
 // }
 
-
 import Phaser from 'phaser';
 import {
   BOARD_CY,

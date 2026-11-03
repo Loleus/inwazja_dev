@@ -862,7 +862,6 @@
 //   },
 // } as const;
 
-
 /* =========================================================================================
    INWAZJA — wszystkie parametry gry w jednym miejscu: układ ekranu, czcionki, kolory,
    nakładki, faktury, przyciski, ekonomia, fale, broń i wrogowie.
@@ -899,6 +898,8 @@ export const DEPTH = {
   GRID: 0,
   PATH: 1,
   TOWER: 5,
+  /** Obrecz ulepszenia: na korpusie broni, pod glowica. */
+  TOWER_RING: 5.25,
   ENEMY: 10,
   /** Korony drzew zasłaniają wieże i wrogów — las jest ponad rozgrywką, pod efektami. */
   TREES: 12,
@@ -1336,9 +1337,9 @@ export const TOWER_SPRITE = {
   shadowFade: [0.65, 0.5, 0.38, 0.27, 0.17, 0.08],
   shadowStep: 0.4,
   levelDarken: 0.12,
-  upgrade: PALETTE.amber200,
-  /** Oko celownicze: tarcza, żrenica, rdzeń i obręcz poziomu 3. */
-  eye: { outer: 9, pupil: 5.5, core: 3, ring: 21, ringWidth: 2.5, ringAlpha: 0.9, halo: 0.18 },
+  upgrade: PALETTE.amber400,
+  /** Oko celownicze: tarcza, żrenica, rdzeń i obręcz poziomu 3 (mieści się w kafelku 25 px). */
+  eye: { outer: 9, pupil: 5.5, core: 3, ring: 17, ringWidth: 2, ringAlpha: 0.88, halo: 0.15 },
   /** Cieniowanie blachy korpusu — koncentryczne ramki fazowania jednakowe z czterech stron kwadratu. */
   sheet: {
     outerRim: { inset: 0.6, width: 1.2, alpha: 0.22 },

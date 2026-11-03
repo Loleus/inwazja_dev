@@ -1494,7 +1494,6 @@
 //   }
 // }
 
-
 import Phaser from 'phaser';
 import { gameAudio } from '../audio';
 import {
@@ -1542,7 +1541,7 @@ import {
   WORLD_Y,
 } from '../constants';
 import type { Enemy, Fx, Projectile, SpawnEntry, Tower } from '../entities';
-import { isStaticTowerSprite, towerBodyKey, towerHeadKey, towerSpriteKey } from '../gfx/sprites';
+import { isStaticTowerSprite, towerBodyKey, towerHeadKey, towerRingKey, towerSpriteKey } from '../gfx/sprites';
 import { makeIconShadowTexture } from '../gfx/surfaces';
 import { enemyName, t, towerName } from '../i18n';
 import {
@@ -2030,6 +2029,7 @@ export class GameScene extends Phaser.Scene {
       col,
       row,
       sprite,
+      ring: null,
       head,
       headAngle: TURRET.restAngle,
       headFrom: TURRET.restAngle,
@@ -2289,10 +2289,16 @@ export class GameScene extends Phaser.Scene {
     tower.level++;
     tower.sprite.setTexture(towerBodyKey(tower.type, tower.level));
     tower.head.setTexture(towerHeadKey(tower.type, tower.level));
+    if (tower.level === MAX_TOWER_LEVEL) {
+      tower.ring = this.add
+        .image(tower.sprite.x, tower.sprite.y, towerRingKey(tower.type))
+        .setDepth(DEPTH.TOWER_RING)
+        .setScale(TOWER_SCALE);
+    }
     gameAudio.upgradeTower(tower.level);
     this.spawnParticles(tower.sprite.x, tower.sprite.y, FX.color.upgrade, FX.upgradeParticles);
     this.tweens.add({
-      targets: [tower.sprite, tower.head],
+      targets: tower.ring ? [tower.sprite, tower.head, tower.ring] : [tower.sprite, tower.head],
       scale: { from: TOWER_SCALE * COMBAT.upgradePopScale, to: TOWER_SCALE },
       duration: PLACEMENT.upgradeMs,
       ease: 'Back.easeOut',
@@ -2310,6 +2316,7 @@ export class GameScene extends Phaser.Scene {
     this.gridTowers[tower.col][tower.row] = null;
     this.towers.splice(this.towers.indexOf(tower), 1);
     this.spawnParticles(tower.sprite.x, tower.sprite.y, FX.color.sell, FX.sellParticles);
+    tower.ring?.destroy();
     tower.sprite.destroy();
     tower.head.destroy();
     this.setStatus(t('sold', { refund }));
@@ -2637,10 +2644,11 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Korpus i głowica zawsze stoją w tym samym punkcie — odrzut przesuwa oba. */
+  /** Odrzut przesuwa korpus, glowice i obrecz razem, bez zmiany kolejnosci warstw. */
   private placeTower(tower: Tower, x: number, y: number) {
     tower.sprite.setPosition(x, y);
     tower.head.setPosition(x, y);
+    tower.ring?.setPosition(x, y);
   }
 
   private updateProjectiles(dt: number) {

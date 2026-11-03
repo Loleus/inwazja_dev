@@ -7,6 +7,7 @@ export interface Tower {
   col: number;
   row: number;
   sprite: Phaser.GameObjects.Image;
+  ring: Phaser.GameObjects.Image | null;
   /** Głowica obrócona w jeden z 8 bazowych kierunków; nie bierze udziału w mechanice. */
   head: Phaser.GameObjects.Image;
   headAngle: number;

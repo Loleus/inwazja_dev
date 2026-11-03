@@ -84,7 +84,6 @@
 //   drawArrowPair(scene, EXIT_ARROW, 'lane-arrow-exit', alpha, pulse, depthBase);
 // }
 
-
 import Phaser from 'phaser';
 import {
   ARROW,
@@ -102,8 +101,13 @@ import {
   WORLD_Y,
   type ArrowMarker,
 } from '../constants';
-import { ensureTreeTextures, makeBoardStoneTexture, TREE_SHADOW_KEY } from '../gfx/surfaces';
-import { cellCenter, isAdjacentToPath, isPath, tileTextureKey } from '../logic/board';
+import {
+  ensureTreeTextures,
+  makeBoardStoneTexture,
+  makeBoardTileTexture,
+  TREE_SHADOW_KEY,
+} from '../gfx/surfaces';
+import { cellCenter, isAdjacentToPath, isPath } from '../logic/board';
 import { textStyle } from './common';
 
 /** Plansza: jedna kamienna tekstura albo — bez CanvasTexture — kafelki komórka po komórce. */
@@ -116,9 +120,10 @@ export function drawMap(scene: Phaser.Scene, alpha: number, depthBase = 0) {
   for (let col = 0; col < COLS; col++) {
     for (let row = 0; row < ROWS; row++) {
       const c = cellCenter(col, row);
+      const road = isPath(col, row);
       scene.add
-        .image(c.x, c.y, tileTextureKey(col, row))
-        .setDepth(depthBase + (isPath(col, row) ? DEPTH.PATH : DEPTH.GRID))
+        .image(c.x, c.y, makeBoardTileTexture(scene, col, row))
+        .setDepth(depthBase + (road ? DEPTH.PATH : DEPTH.GRID))
         .setAlpha(alpha);
     }
   }
