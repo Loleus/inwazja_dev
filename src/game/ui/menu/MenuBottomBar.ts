@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {
+  BOTTOM_BAR,
   BOTTOM_BAR_CY,
   CENTER_X,
   FONT,
@@ -10,12 +11,17 @@ import {
   TEXT_COLOR,
   UI_RESOLUTION,
 } from '../../constants';
-import { drawStoneBar, type TextStyle } from '../common';
+import { addAudioToggle, drawStoneBar, type TextStyle } from '../common';
 
-/** Pasek dolny menu ze stopką autorską w neonowej poświacie. */
+/**
+ * Pasek dolny menu: stopka autorska w neonowej poświacie i ikona dźwięku po prawej —
+ * w tym samym punkcie, w którym scena gry stawia swoją (30 px od krawędzi, w pionie paska).
+ */
 export function buildMenuBottomBar(scene: Phaser.Scene) {
   drawStoneBar(scene, BOTTOM_BAR_CY, PANEL_H, MENU_DEPTH.bars);
   buildFooter(scene);
+  const audio = BOTTOM_BAR.audio;
+  addAudioToggle(scene, audio.x, BOTTOM_BAR_CY, audio.w, audio.h, 0);
 }
 
 /**

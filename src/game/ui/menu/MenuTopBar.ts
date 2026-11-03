@@ -1,17 +1,16 @@
 import Phaser from 'phaser';
-import { FONT_SIZE, MENU, MENU_DEPTH, PALETTE, TEXT_COLOR, TOP_BAR, TOP_BAR_CY, WORLD_Y } from '../../constants';
+import { FONT_SIZE, MENU, MENU_DEPTH, TOP_BAR, TOP_BAR_CY, WORLD_Y } from '../../constants';
 import { getLang, setLang, type Lang } from '../../i18n';
 import { gameAudio } from '../../audio';
 import { addGlyph, addNeutralButton, drawStoneBar, toggleFullscreen } from '../common';
 
 /**
- * Pasek górny menu: flagi języków po lewej, ikona dźwięku i pełny ekran po prawej.
- * Oba szare przyciski mają identyczny rozmiar i styl jak w scenie gry.
+ * Pasek górny menu: flagi języków po lewej, pełny ekran po prawej.
+ * Ikona dźwięku stoi na dolnym pasku (patrz buildMenuBottomBar).
  */
 export function buildMenuTopBar(scene: Phaser.Scene) {
   drawStoneBar(scene, TOP_BAR_CY, WORLD_Y, MENU_DEPTH.bars);
   buildLanguageSwitch(scene);
-  buildAudioToggle(scene);
 
   /* Taki sam przycisk pełnego ekranu jak w scenie gry: rozmiar i glif z paska górnego gry. */
   addNeutralButton(scene, TOP_BAR.fullscreenX, TOP_BAR_CY, TOP_BAR.button.w, TOP_BAR.button.h, () => {
@@ -19,35 +18,6 @@ export function buildMenuTopBar(scene: Phaser.Scene) {
     toggleFullscreen(scene);
   });
   addGlyph(scene, TOP_BAR.fullscreenX, TOP_BAR_CY, '⧉', FONT_SIZE.hudGlyph);
-}
-
-/**
- * Dźwięk domyślnie wyłączony. Kliknięcie włącza go i jest jednocześnie gestem zezwalającym
- * przeglądarce na AudioContext; wyłączenie tylko wycisza, nie zmienia stanu gry.
- */
-function buildAudioToggle(scene: Phaser.Scene) {
-  const x = TOP_BAR.audioX;
-  let glyph: Phaser.GameObjects.Text | null = null;
-  const slash = scene.add.graphics();
-
-  const paint = (enabled: boolean) => {
-    glyph?.setColor(enabled ? TEXT_COLOR.light : TEXT_COLOR.dim);
-    slash.clear();
-    if (enabled) return;
-    slash.lineStyle(1.5, PALETTE.slate300, 0.95);
-    slash.lineBetween(x - 7, TOP_BAR_CY - 7, x + 7, TOP_BAR_CY + 7);
-  };
-
-  addNeutralButton(scene, x, TOP_BAR_CY, TOP_BAR.button.w, TOP_BAR.button.h, () => {
-    const enabled = gameAudio.toggle();
-    paint(enabled);
-    if (enabled) gameAudio.uiClick();
-  });
-  glyph = addGlyph(scene, x, TOP_BAR_CY, '🕪', FONT_SIZE.hudGlyph);
-  paint(gameAudio.isEnabled());
-  /* Silnik może odmówić (brak WebAudio) — wtedy stan ikony zostaje zgodny z rzeczywistością. */
-  const unsubscribe = gameAudio.onChange(paint);
-  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
 }
 
 /**

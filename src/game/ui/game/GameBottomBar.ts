@@ -20,7 +20,7 @@ import { towerName } from '../../i18n';
 import { damageLabel } from '../../logic/combat';
 import type { TowerType } from '../../types';
 import { brighten, cardBackground, darken } from '../../utils/color';
-import { drawBarDivider, drawStoneBar, textStyle } from '../common';
+import { addAudioToggle, drawBarDivider, drawStoneBar, textStyle } from '../common';
 
 interface TowerButton {
   bg: Phaser.GameObjects.Rectangle;
@@ -121,6 +121,10 @@ export class GameBottomBar {
       this.paintFrame(type, btn, false, true);
       this.paintHoverFrame(type, btn);
     });
+
+    /* Ikona dźwięku po prawej — dokładnie w tym samym punkcie, w którym stoi w menu.
+       Leży poza kartami broni, więc ich układ i rozmiar pozostają bez zmian. */
+    addAudioToggle(scene, B.audio.x, BOTTOM_BAR_CY, B.audio.w, B.audio.h, DEPTH.HUD);
   }
 
   /** Stała lub wybrana ramka karty — ten sam promień narożników co okno PROMPTERA. */

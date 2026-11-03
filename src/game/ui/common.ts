@@ -5,13 +5,16 @@ import {
   CENTER_X,
   ENEMY_STYLE,
   FONT,
+  FONT_SIZE,
   GAME_H,
   GAME_W,
   OVERLAY,
   PALETTE,
+  TEXT_COLOR,
   TEXTURE,
   UI_RESOLUTION,
 } from '../constants';
+import { gameAudio } from '../audio';
 import { makeMenuCardShadow, makeStoneSurfaceTexture } from '../gfx/surfaces';
 import { cardBackground } from '../utils/color';
 
@@ -89,6 +92,44 @@ export function toggleFullscreen(scene: Phaser.Scene) {
   } catch {
     /* przeglądarka może odmówić bez gestu użytkownika */
   }
+}
+
+/**
+ * Ikona dźwięku — jedna wspólna implementacja dla menu i sceny gry. Oba ekrany stawiają
+ * ją w tym samym punkcie (środek 30 px od prawej krawędzi, w pionie paska dolnego),
+ * więc przejście menu → gra nie przesuwa ikony. Dźwięk jest domyślnie wyłączony;
+ * kliknięcie włącza go i jest gestem zezwalającym przeglądarce na AudioContext.
+ */
+export function addAudioToggle(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  depth = 0,
+) {
+  let glyph: Phaser.GameObjects.Text | null = null;
+  const slash = scene.add.graphics().setDepth(depth + 1);
+
+  const paint = (enabled: boolean) => {
+    glyph?.setColor(enabled ? TEXT_COLOR.light : TEXT_COLOR.dim);
+    slash.clear();
+    if (enabled) return;
+    slash.lineStyle(1.5, PALETTE.slate300, 0.95);
+    slash.lineBetween(x - 7, y - 7, x + 7, y + 7);
+  };
+
+  const button = addNeutralButton(scene, x, y, width, height, () => {
+    const enabled = gameAudio.toggle();
+    paint(enabled);
+    if (enabled) gameAudio.uiClick();
+  }).setDepth(depth);
+  glyph = addGlyph(scene, x, y, '🕪', FONT_SIZE.hudGlyph).setDepth(depth + 1);
+  paint(gameAudio.isEnabled());
+  /* Silnik może odmówić (brak WebAudio) — wtedy stan ikony zostaje zgodny z rzeczywistością. */
+  const unsubscribe = gameAudio.onChange(paint);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+  return button;
 }
 
 /** Losowe gwiazdki tła. */

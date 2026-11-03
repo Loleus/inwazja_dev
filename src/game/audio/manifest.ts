@@ -9,6 +9,12 @@
    ========================================================================================= */
 import type { EnemyType } from '../types';
 
+/**
+ * Gra działa bez sampli MP3 — cały dźwięk powstaje proceduralnie z opisów `fallback`.
+ * Ustawienie na true przywraca wczytywanie plików z `public/audio/` (bez zmian w kodzie scen).
+ */
+export const AUDIO_SAMPLE_FILES = false;
+
 /** Ścieżka plików audio liczona od adresu strony — działa też w podkatalogu i w PWA. */
 function audioFile(id: string): string {
   const base = typeof document === 'undefined' ? './' : new URL('audio/', document.baseURI).href;
